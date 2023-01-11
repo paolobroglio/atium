@@ -1,192 +1,128 @@
-use crate::converter::model::{ConversionEngine, ConversionRequest, ConversionResponse};
+use std::fs;
+use uuid::Uuid;
+use crate::atium::common::command_manager::CommandManager;
+use crate::converter::model::{ConversionEngine, ConversionInput, ConversionRequest, ConversionResponse, InputSourceType};
 
+/// Conversion service that holds the logic for converting a video content
 pub trait ConversionService {
-    fn convert(conversion_request: ConversionRequest) -> Result<ConversionResponse, &'static str>;
+    /// Converts a given input video file by using the previously loaded engine.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - An instance of [`ConversionRequest`] struct
+    ///
+    /// # Examples
+    /// ```
+    /// let selected_engine = ConversionEngine::Ffmpeg;
+    /// let conversion_service =
+    ///     ConversionServiceBuilder::new(selected_engine)
+    ///     .expect("could not load service");
+    /// let request = ConversionRequest{
+    ///     input: ConversionInput {
+    ///         source_type: InputSourceType::Local,
+    ///         file_name:  input.clone()
+    ///     },
+    ///     output: ConversionOutput {
+    ///         file: output.clone(),
+    ///         resolution: None,
+    ///         codec: None
+    ///     }
+    /// };
+    /// let result = conversion_service.convert(request);
+    /// ```
+    fn convert(&self, conversion_request: ConversionRequest) -> Result<ConversionResponse, &'static str>;
 }
 
-pub struct FFMPEGConversionService {}
+/// FFMPEG implementation of [`ConversionService`] behavior
+pub struct FFMPEGConversionService {
+    command_manager: CommandManager
+}
 
-impl ConversionService for FFMPEGConversionService{
-    fn convert(conversion_request: ConversionRequest) -> Result<ConversionResponse, &'static str> {
-        todo!()
+impl FFMPEGConversionService {
+    fn load_source_file(&self, source: ConversionInput) -> Result<String, &'static str> {
+        match source.source_type {
+            InputSourceType::Web => {
+                Err("Web source type is currently not supported!")
+            }
+            InputSourceType::Local => {
+                let uuid = Uuid::new_v4().to_string();
+                let mut new_path = String::from("/tmp/");
+                new_path.push_str(uuid.as_str());
+                new_path.push_str(".mp4");
+
+                match fs::copy(source.file_name, new_path.clone()) {
+                    Ok(_) => Ok(new_path),
+                    Err(_) => Err("Error when trying to copy input file")
+                }
+            }
+        }
+    }
+    fn cleanup_tmp_file(&self, tmp_filepath: String) {
+        match fs::remove_file(tmp_filepath) {
+            Ok(_) => println!("Temporary file removed successfully"),
+            Err(_) => eprintln!("Temporary file not removed!")
+        }
     }
 }
 
-pub struct ConversionServiceBuilder {
-    engine: ConversionEngine
+impl ConversionService for FFMPEGConversionService{
+    fn convert(&self, conversion_request: ConversionRequest) -> Result<ConversionResponse, &'static str> {
+        let input_file_path = self.load_source_file(conversion_request.input)
+            .expect("could not load source file");
+        let output_file = conversion_request.output.file.as_str();
+
+        println!("Converting file at path [{}]", input_file_path);
+        println!("Output will be available at path [{}]", output_file);
+
+        match self.command_manager.execute_with_args(vec![
+            "-i",
+            input_file_path.as_str(),
+            conversion_request.output.file.as_str()
+        ]) {
+            Ok(result) => {
+                if !result.status.success() {
+                    self.command_manager.print_command_output(result.stderr)?;
+                    return Err("conversion failed!")
+                }
+                self.cleanup_tmp_file(input_file_path);
+                Ok(ConversionResponse { output_file: output_file.to_string() })
+            }
+            Err(_) => {
+                self.cleanup_tmp_file(input_file_path);
+                Err("conversion command execution failed")
+            }
+        }
+    }
 }
 
-// #[derive(Parser)]
-// #[command(author, version, about, long_about = None)]
-// struct Cli {
-//     input_path: String,
-//     output_path: String,
-//
-//     #[arg(short, long, default_value_t=0)]
-//     thumb: i32,
-//     #[arg(long)]
-//     thumb_ts: Option<String>,
-//     #[arg(long)]
-//     thumb_out: Option<String>,
-//
-//     #[arg(short,long, default_value_t=0)]
-//     debug: i32
-// }
-//
-// struct ThumbnailOptions {
-//     timestamp: String,
-//     output: String
-// }
-//
-// impl ThumbnailOptions {
-//     fn new(timestamp: String, output: String) -> ThumbnailOptions {
-//         ThumbnailOptions {
-//             timestamp,
-//             output
-//         }
-//     }
-// }
-//
-// struct ConversionOptions {
-//     input_path: String,
-//     output_path: String,
-//
-//     thumb_options: Option<ThumbnailOptions>,
-//
-//     debug: bool
-// }
-//
-// impl ConversionOptions {
-//     fn new(input: String, output: String, thumbnail_options: Option<ThumbnailOptions>, debug: bool) -> ConversionOptions {
-//         ConversionOptions {
-//             input_path: input,
-//             output_path: output,
-//             thumb_options: thumbnail_options,
-//             debug
-//         }
-//     }
-//     fn from_cli(cli: Cli) -> ConversionOptions {
-//         ConversionOptions::new(
-//             cli.input_path,
-//             cli.output_path,
-//             {
-//                 if cli.thumb == 1 {
-//                     let thumbnail_output_path = match cli.thumb_out {
-//                         Some(thumb_out) => thumb_out,
-//                         None => String::from("thumb.jpeg")
-//                     };
-//
-//                     let thumbnail_timestamp = match cli.thumb_ts {
-//                         Some(thumb_ts) => thumb_ts,
-//                         None => String::from("1")
-//                     };
-//
-//                     Some(ThumbnailOptions::new(thumbnail_timestamp, thumbnail_output_path))
-//                 } else {
-//                     None
-//                 }
-//             },
-//             cli.debug == 1
-//         )
-//     }
-// }
-//
-// fn print_process_output(output: std::process::Output, is_err: bool) {
-//     let mut out = output.stdout;
-//     if is_err {
-//         out = output.stderr;
-//     }
-//
-//     String::from_utf8(out)
-//         .expect("could not parse std")
-//         .lines()
-//         .for_each(|x| println!("{:?}", x));
-// }
-//
-// fn execute_ffmpeg(args: &Vec<&str>, debug: bool) -> Result<(), &'static str> {
-//     let mut command = Command::new("ffmpeg");
-//     let command_with_args = command.args(args);
-//
-//     if debug {
-//         println!("Command arguments");
-//         print!("ffmpeg ");
-//         command_with_args.get_args()
-//             .for_each(|x| print!("{} ", x.to_str().unwrap()));
-//         println!()
-//     }
-//     let execution = command_with_args.output().expect("could not execute conversion");
-//     if !execution.status.success() {
-//         if debug {
-//             print_process_output(execution, true);
-//         }
-//
-//         return Err("Command execution failed")
-//     }
-//
-//     Ok(())
-// }
+/// This struct lets you build a new [`ConversionService`] based on given engine
+pub struct ConversionServiceBuilder {}
 
-// fn convert(options: ConversionOptions) -> Result<(), &'static str> {
-//     let rnd_name: String = rand::thread_rng()
-//         .sample_iter(&Alphanumeric)
-//         .take(4)
-//         .map(char::from)
-//         .collect();
-//
-//     let splitted_output = options.output_path
-//         .split('.')
-//         .map(|s| s.to_string())
-//         .collect::<Vec<_>>();
-//
-//     let name = splitted_output.get(0)
-//         .map(|s| s.to_string())
-//         .unwrap_or_else(|| "output".to_string());
-//
-//     let extension = splitted_output.get(1)
-//         .map(|s| s.to_string())
-//         .unwrap_or_else(|| "mp4".to_string());
-//
-//     let converted_name = format!("{}_{}.{}", name, rnd_name, extension);
-//
-//     let args = vec![
-//         "-i",
-//         options.input_path.as_str(),
-//         converted_name.as_str()
-//     ];
-//
-//     match execute_ffmpeg(&args, options.debug) {
-//         Ok(_) => {
-//             return match options.thumb_options {
-//                 Some(thumb_options) => {
-//                     let splitted_thumb_output = thumb_options.output
-//                         .split('.')
-//                         .map(|s| s.to_string())
-//                         .collect::<Vec<_>>();
-//
-//                     let thumb_name = splitted_thumb_output.get(0)
-//                         .map(|s| s.to_string())
-//                         .unwrap_or_else(|| "output".to_string());
-//
-//                     let thumb_extension = splitted_thumb_output.get(1)
-//                         .map(|s| s.to_string())
-//                         .unwrap_or_else(|| "mp4".to_string());
-//
-//                     let final_name = format!("{}_{}.{}", thumb_name, rnd_name, thumb_extension);
-//                     let args = vec![
-//                         "-i",
-//                         converted_name.as_str(),
-//                         "-ss",
-//                         thumb_options.timestamp.as_str(),
-//                         "-vframes",
-//                         "1",
-//                         final_name.as_str()
-//                     ];
-//                     execute_ffmpeg(&args, options.debug)
-//                 }
-//                 None => Ok(())
-//             }
-//         }
-//         Err(err) => Err(err)
-//     }
-// }
+impl ConversionServiceBuilder {
+    /// Creates a new instance of [`ConversionService`] with the requested loaded engine.
+    /// Current supported engines are:
+    /// * `ffmpeg`
+    ///
+    /// # Arguments
+    ///
+    /// * `engine` - Any value of [`ConversionEngine`] enum
+    ///
+    /// # Examples
+    /// ```
+    /// let selected_engine = ConversionEngine::Ffmpeg;
+    /// let conversion_service = ConversionServiceBuilder::new(selected_engine).expect("error!");
+    /// ```
+    pub fn new(engine: ConversionEngine) -> Result<Box<dyn ConversionService>, &'static str> {
+        return match engine {
+            ConversionEngine::Ffmpeg => {
+                let command_manager =
+                    CommandManager::new("ffmpeg".to_string(), vec!["-version"])
+                        .expect("could not load command!");
 
+                Ok(Box::new(FFMPEGConversionService {
+                    command_manager
+                }))
+            }
+        }
+    }
+}

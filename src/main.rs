@@ -3,12 +3,22 @@ use clap::{Parser, Subcommand};
 use atium::converter;
 
 use crate::atium::utility::model::{InfoExtractorEngine, InfoExtractorRequest, parse_info_format};
-use crate::atium::utility::service::{InfoExtractorBuilder};
+use crate::atium::utility::service::InfoExtractorBuilder;
+use crate::converter::model::{ConversionEngine, ConversionInput, ConversionOutput, ConversionRequest, InputSourceType};
+use crate::converter::service::ConversionServiceBuilder;
 
 mod atium;
 
 #[derive(Subcommand)]
 enum Commands {
+    Convert {
+        #[arg(short, long)]
+        input: String,
+        #[arg(short, long)]
+        source_type: Option<String>,
+        #[arg(short, long)]
+        output: String,
+    },
     Analyze {
         input: String,
         #[arg(short, long)]
@@ -55,6 +65,33 @@ fn main() {
                 }
                 Err(err) => eprintln!("An error occurred when extracting info {}", err)
             }
+        },
+        Commands::Convert {
+            input, source_type:_, output
+        } => {
+            let selected_engine = ConversionEngine::Ffmpeg;
+            let conversion_service =
+                ConversionServiceBuilder::new(selected_engine)
+                    .expect("could not load service");
+            let request = ConversionRequest{
+                input: ConversionInput {
+                    source_type: InputSourceType::Local,
+                    file_name:  input.clone()
+                },
+                output: ConversionOutput {
+                    file: output.clone(),
+                    resolution: None,
+                    codec: None
+                }
+            };
+
+            match conversion_service.convert(request) {
+                Ok(response) => {
+                    println!("Converted file available at {}", response.output_file)
+                }
+                Err(msg) => eprintln!("An error occurred when converting {}", msg)
+            }
+
         }
     }
 }
