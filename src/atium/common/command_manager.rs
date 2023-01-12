@@ -1,4 +1,5 @@
 use std::process::{Command, Output};
+use crate::atium::common::error::AtiumError;
 
 /// A simple struct that holds the logic needed for managing external commands
 pub struct CommandManager {
@@ -8,7 +9,7 @@ pub struct CommandManager {
 impl CommandManager {
     /// Creates a new [`CommandManager`] by trying if the provided command is available on the
     /// executing environment.
-    pub fn new(command: String, command_args: Vec<&str>) -> Result<CommandManager, &'static str> {
+    pub fn new(command: String, command_args: Vec<&str>) -> Result<CommandManager, AtiumError> {
         let command_output = Command::new(command.clone())
             .args(command_args)
             .output();
@@ -16,33 +17,33 @@ impl CommandManager {
         match command_output {
             Ok(cmd_out) => {
                 if !cmd_out.status.success() {
-                    return Err("Execution of command failed");
+                    return Err(AtiumError::CommandError("Command execution returned ERROR status".to_string()))
                 }
 
                 Ok(CommandManager { command })
             }
             Err(_) =>
-                Err("Execution of command failed")
+                Err(AtiumError::CommandError("error when executing command".to_string()))
         }
     }
     /// Prints Command Output to stdout
-    pub fn print_command_output(&self, output: Vec<u8>) -> Result<(), &'static str> {
+    pub fn print_command_output(&self, output: Vec<u8>) -> Result<(), AtiumError> {
         match String::from_utf8(output) {
             Ok(content) => {
                 content.lines().for_each(|x| println!("{:?}", x));
                 Ok(())
             },
-            Err(_) => Err("error when writing to stdout"),
+            Err(_) => Err(AtiumError::IOError("error when writing to stdout".to_string())),
         }
     }
-    pub fn execute_with_args(&self, args: Vec<&str>) -> Result<Output, &'static str> {
+    pub fn execute_with_args(&self, args: Vec<&str>) -> Result<Output, AtiumError> {
         let command = Command::new(self.command.clone())
             .args(args)
             .output();
 
         match command {
             Ok(result) => Ok(result),
-            Err(_) => Err("could not execute command")
+            Err(_) => Err(AtiumError::CommandError("error when executing command".to_string())),
         }
     }
 }

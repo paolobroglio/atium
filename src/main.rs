@@ -4,7 +4,7 @@ use atium::converter;
 
 use crate::atium::utility::model::{InfoExtractorEngine, InfoExtractorRequest, parse_info_format};
 use crate::atium::utility::service::InfoExtractorBuilder;
-use crate::converter::model::{ConversionEngine, ConversionInput, ConversionOutput, ConversionRequest, InputSourceType};
+use crate::converter::model::{ConversionEngine, ConversionInput, ConversionOutput, ConversionRequest, InputSourceType, OutputCodec, parse_resolution};
 use crate::converter::service::ConversionServiceBuilder;
 
 mod atium;
@@ -18,6 +18,8 @@ enum Commands {
         source_type: Option<String>,
         #[arg(short, long)]
         output: String,
+        #[arg(short, long)]
+        resolution: String,
     },
     Analyze {
         input: String,
@@ -67,7 +69,10 @@ fn main() {
             }
         },
         Commands::Convert {
-            input, source_type:_, output
+            input,
+            source_type:_,
+            output,
+            resolution
         } => {
             let selected_engine = ConversionEngine::Ffmpeg;
             let conversion_service =
@@ -80,8 +85,8 @@ fn main() {
                 },
                 output: ConversionOutput {
                     file: output.clone(),
-                    resolution: None,
-                    codec: None
+                    resolution: parse_resolution(resolution),
+                    codec: OutputCodec::H264
                 }
             };
 

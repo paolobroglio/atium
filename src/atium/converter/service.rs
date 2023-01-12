@@ -1,7 +1,10 @@
 use std::fs;
+use std::path::Path;
+use rand::Rng;
 use uuid::Uuid;
 use crate::atium::common::command_manager::CommandManager;
-use crate::converter::model::{ConversionEngine, ConversionInput, ConversionRequest, ConversionResponse, InputSourceType};
+use crate::atium::common::error::AtiumError;
+use crate::converter::model::{ConversionEngine, ConversionInput, ConversionRequest, ConversionResponse, get_width_height, InputSourceType, OutputResolution};
 
 /// Conversion service that holds the logic for converting a video content
 pub trait ConversionService {
@@ -30,7 +33,7 @@ pub trait ConversionService {
     /// };
     /// let result = conversion_service.convert(request);
     /// ```
-    fn convert(&self, conversion_request: ConversionRequest) -> Result<ConversionResponse, &'static str>;
+    fn convert(&self, conversion_request: ConversionRequest) -> Result<ConversionResponse, AtiumError>;
 }
 
 /// FFMPEG implementation of [`ConversionService`] behavior
@@ -39,6 +42,25 @@ pub struct FFMPEGConversionService {
 }
 
 impl FFMPEGConversionService {
+    fn compute_output_file(&self, output: &String) -> String {
+        let path = Path::new(output);
+
+        if path.exists() {
+            let uuid = &Uuid::new_v4().to_string()[0..7];
+            let splitted =
+                output
+                    .split('.')
+                    .collect::<Vec<_>>();
+            let mut rng = rand::thread_rng();
+            let random_n = rng.gen_range(0..10000).to_string();
+            let name = splitted.get(0).unwrap_or(&uuid).to_string();
+            let extension = splitted.get(1).unwrap_or(&"mp4").to_string();
+
+            return format!("{}-{}.{}", name, random_n, extension)
+        }
+
+        output.clone()
+    }
     fn load_source_file(&self, source: ConversionInput) -> Result<String, &'static str> {
         match source.source_type {
             InputSourceType::Web => {
@@ -63,33 +85,48 @@ impl FFMPEGConversionService {
             Err(_) => eprintln!("Temporary file not removed!")
         }
     }
+    fn build_args(&self, resolution: OutputResolution, input_file_path: String, output_file: String) -> Result<Vec<String>, &'static str> {
+        let (width, height) = get_width_height(resolution);
+
+        println!("Requested resolution is [{}X{}]", width, height);
+
+        Ok(vec![
+            String::from("-i"),
+            input_file_path,
+            String::from("-vf"),
+            format!("scale={}:{}", width, height),
+            output_file
+        ])
+    }
 }
 
 impl ConversionService for FFMPEGConversionService{
-    fn convert(&self, conversion_request: ConversionRequest) -> Result<ConversionResponse, &'static str> {
+    fn convert(&self, conversion_request: ConversionRequest) -> Result<ConversionResponse, AtiumError> {
         let input_file_path = self.load_source_file(conversion_request.input)
+            .map_err(|err_msg| AtiumError::ConversionError(err_msg.to_string()))
             .expect("could not load source file");
-        let output_file = conversion_request.output.file.as_str();
+        let output_file = self.compute_output_file(&conversion_request.output.file);
+        let built_args = self.build_args(
+            conversion_request.output.resolution,
+            input_file_path.clone(),
+            output_file.clone())
+            .map_err(|err_msg| AtiumError::ConversionError(err_msg.to_string()))
+            .expect("Could not build command!");
 
         println!("Converting file at path [{}]", input_file_path);
-        println!("Output will be available at path [{}]", output_file);
 
-        match self.command_manager.execute_with_args(vec![
-            "-i",
-            input_file_path.as_str(),
-            conversion_request.output.file.as_str()
-        ]) {
+        match self.command_manager.execute_with_args(built_args.iter().map(AsRef::as_ref).collect()) {
             Ok(result) => {
                 if !result.status.success() {
                     self.command_manager.print_command_output(result.stderr)?;
-                    return Err("conversion failed!")
+                    return Err(AtiumError::ConversionError("Execution of command returned ERROR".to_string()))
                 }
                 self.cleanup_tmp_file(input_file_path);
                 Ok(ConversionResponse { output_file: output_file.to_string() })
             }
             Err(_) => {
                 self.cleanup_tmp_file(input_file_path);
-                Err("conversion command execution failed")
+                Err(AtiumError::ConversionError("conversion command execution failed".to_string()))
             }
         }
     }
@@ -112,7 +149,7 @@ impl ConversionServiceBuilder {
     /// let selected_engine = ConversionEngine::Ffmpeg;
     /// let conversion_service = ConversionServiceBuilder::new(selected_engine).expect("error!");
     /// ```
-    pub fn new(engine: ConversionEngine) -> Result<Box<dyn ConversionService>, &'static str> {
+    pub fn new(engine: ConversionEngine) -> Result<Box<dyn ConversionService>, AtiumError> {
         return match engine {
             ConversionEngine::Ffmpeg => {
                 let command_manager =
