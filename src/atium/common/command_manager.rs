@@ -1,4 +1,4 @@
-use std::process::Command;
+use std::process::{Command, Output};
 
 /// A simple struct that holds the logic needed for managing external commands
 pub struct CommandManager {
@@ -33,6 +33,16 @@ impl CommandManager {
                 Ok(())
             },
             Err(_) => Err("error when writing to stdout"),
+        }
+    }
+    pub fn execute_with_args(&self, args: Vec<&str>) -> Result<Output, &'static str> {
+        let command = Command::new(self.command.clone())
+            .args(args)
+            .output();
+
+        match command {
+            Ok(result) => Ok(result),
+            Err(_) => Err("could not execute command")
         }
     }
 }

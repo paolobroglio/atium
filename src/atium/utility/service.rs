@@ -1,5 +1,5 @@
 use std::fs;
-use std::process::{Command, Output};
+use std::process::{Command};
 use uuid::Uuid;
 use crate::atium::common::command_manager::CommandManager;
 
@@ -29,9 +29,7 @@ pub trait InfoExtractorService {
 
 
 /// This struct lets you build a new [`InfoExtractorService`] based on given engine
-pub struct InfoExtractorBuilder {
-    engine: InfoExtractorEngine
-}
+pub struct InfoExtractorBuilder {}
 
 impl InfoExtractorBuilder {
     /// Creates a new instance of [`InfoExtractorService`] with the requested loaded engine.
@@ -54,9 +52,9 @@ impl InfoExtractorBuilder {
                     CommandManager::new("mediainfo".to_string(), vec!["--version"])
                         .expect("could not load command!");
 
-                return Ok(Box::new(MediaInfoExtractorService{
+                Ok(Box::new(MediaInfoExtractorService {
                     command_manager
-                }));
+                }))
             }
         }
     }
