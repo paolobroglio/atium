@@ -2,6 +2,7 @@ use std::fs;
 use std::process::{Command};
 use uuid::Uuid;
 use crate::atium::common::command_manager::CommandManager;
+use crate::atium::common::error::AtiumError;
 
 use crate::atium::utility::model::{InfoExtractorEngine, InfoExtractorRequest, InfoExtractorResponse, InfoExtractorResponseOutput, InfoFormat};
 
@@ -24,7 +25,7 @@ pub trait InfoExtractorService {
     /// }
     /// let info_response = info_extractor_service.get_info(request);
     /// ```
-    fn get_info(&self, request: InfoExtractorRequest) -> Result<InfoExtractorResponse, &'static str>;
+    fn get_info(&self, request: InfoExtractorRequest) -> Result<InfoExtractorResponse, AtiumError>;
 }
 
 
@@ -45,7 +46,7 @@ impl InfoExtractorBuilder {
     /// let selected_engine = InfoExtractorEngine::MediaInfo;
     /// let info_extractor_service = InfoExtractorBuilder::new(selected_engine).expect("error!");
     /// ```
-    pub fn new(engine: InfoExtractorEngine) -> Result<Box<dyn InfoExtractorService>, &'static str> {
+    pub fn new(engine: InfoExtractorEngine) -> Result<Box<dyn InfoExtractorService>, AtiumError> {
         return match engine {
             InfoExtractorEngine::MediaInfo => {
                 let command_manager =
@@ -66,7 +67,7 @@ pub struct MediaInfoExtractorService {
 }
 
 impl MediaInfoExtractorService {
-    fn write_to_stdout(&self, output: std::process::Output) -> Result<(), &'static str> {
+    fn write_to_stdout(&self, output: std::process::Output) -> Result<(), AtiumError> {
         self.command_manager.print_command_output(output.stdout)
     }
     fn write_info_to_file(&self, output: std::process::Output, out_filepath: String, format: InfoFormat) -> Result<String, &'static str> {
@@ -87,7 +88,7 @@ impl MediaInfoExtractorService {
             Err(_) => Err("could not write to file!")
         }
     }
-    fn write_result(&self, execution_result: std::process::Output, output_file: Option<String>, format: InfoFormat) -> Result<InfoExtractorResponse, &'static str> {
+    fn write_result(&self, execution_result: std::process::Output, output_file: Option<String>, format: InfoFormat) -> Result<InfoExtractorResponse, AtiumError> {
         return match output_file {
             None => self.write_to_stdout(execution_result)
                 .map(|_| InfoExtractorResponse {
@@ -102,13 +103,14 @@ impl MediaInfoExtractorService {
                             file: Some(output)
                         }
                     })
+                    .map_err(|err_msg| AtiumError::IOError(err_msg.to_string()))
             }
         }
     }
 }
 
 impl InfoExtractorService for MediaInfoExtractorService {
-    fn get_info(&self, request: InfoExtractorRequest) -> Result<InfoExtractorResponse, &'static str> {
+    fn get_info(&self, request: InfoExtractorRequest) -> Result<InfoExtractorResponse, AtiumError> {
         let format = request.format.unwrap_or(InfoFormat::Json);
         let full = request.full.unwrap_or(true);
 
@@ -132,21 +134,17 @@ impl InfoExtractorService for MediaInfoExtractorService {
 
         args.push(request.input.as_str());
 
-        let command = Command::new("mediainfo")
-            .args(args)
-            .output();
-
-        return match command {
+        return match self.command_manager.execute_with_args(args) {
             Ok(execution_result) => {
                 if !execution_result.status.success() {
                     // WARN: MEDIAINFO WRITES ERRORS TO STDOUT
                     self.command_manager.print_command_output(execution_result.stdout)?;
-                    return Err("command execution failed")
+                    return Err(AtiumError::CommandError("Command execution returned ERROR status".to_string()))
                 }
 
                 self.write_result(execution_result, request.output_file, format)
             }
-            Err(_) => Err("could not execute command")
+            Err(_) => Err(AtiumError::CommandError("Could not execute command".to_string()))
         }
     }
 }
