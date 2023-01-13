@@ -1,4 +1,3 @@
-use std::ffi::OsStr;
 use std::process::{Command, Output};
 use crate::atium::common::error::AtiumError;
 
