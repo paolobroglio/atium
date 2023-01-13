@@ -66,9 +66,6 @@ impl FFMPEGConversionService {
     }
     fn load_source_file(&self, source: ConversionInput) -> Result<String, &'static str> {
         match source.source_type {
-            InputSourceType::Web => {
-                Err("Web source type is currently not supported!")
-            }
             InputSourceType::Local => {
                 let uuid = Uuid::new_v4().to_string();
                 let mut new_path = String::from("/tmp/");

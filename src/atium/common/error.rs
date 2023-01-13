@@ -1,14 +1,11 @@
-use std::error::Error;
 use std::fmt;
-use std::fmt::{Formatter, write};
+use std::fmt::{Formatter};
 
 #[derive(Debug)]
 pub enum AtiumError {
     ConversionError(String),
-    ThumbnailError(String),
     IOError(String),
-    CommandError(String),
-    Other
+    CommandError(String)
 }
 
 impl fmt::Display for AtiumError {
@@ -16,9 +13,7 @@ impl fmt::Display for AtiumError {
         match *self {
             AtiumError::ConversionError(ref msg) => write!(f, "Conversion Error: {}", msg),
             AtiumError::IOError(ref msg) => write!(f, "I/O Error: {}", msg),
-            AtiumError::CommandError(ref msg) => write!(f, "Command Error: {}", msg),
-            AtiumError::ThumbnailError(ref msg) => write!(f, "Thumbnail Error: {}", msg),
-            AtiumError::Other => write!(f, "Unknown Error"),
+            AtiumError::CommandError(ref msg) => write!(f, "Command Error: {}", msg)
         }
     }
 }

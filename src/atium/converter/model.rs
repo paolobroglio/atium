@@ -7,7 +7,6 @@ pub enum ConversionEngine {
 
 /// The input file source type
 pub enum InputSourceType {
-    Web,
     Local
 }
 
@@ -68,7 +67,7 @@ pub fn get_width_height(resolution: OutputResolution) -> (i16,i16) {
 
 /// Output codec options
 pub enum OutputCodec {
-    H264, Vp9
+    H264
 }
 
 /// Conversion output options

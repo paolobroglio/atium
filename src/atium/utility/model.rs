@@ -45,8 +45,3 @@ pub struct InfoExtractorResponse {
     /// The [`InfoExtractorResponseOutput`] containing pointers to the actual output
     pub output: InfoExtractorResponseOutput
 }
-
-pub struct SubtitlesBurnRequest {
-    pub video_file: String,
-    pub subs_file: String
-}
