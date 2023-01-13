@@ -1,4 +1,4 @@
-![status](https://github.com/paolobroglio/atium/actions/workflows/rust.yml/badge.svg)
+![status](https://github.com/paolobroglio/atium/actions/workflows/build.yml/badge.svg)
 
 # Atium
 
