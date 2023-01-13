@@ -22,6 +22,7 @@ impl ThumbnailServiceBuilder {
     /// # Examples
     /// ```
     /// let selected_engine = ConversionEngine::Ffmpeg;
+    ///
     /// let thumbnail_service = ThumbnailServiceBuilder::new(selected_engine).expect("error!");
     /// ```
     pub fn new(engine: ConversionEngine) -> Result<Box<dyn ThumbnailService>, AtiumError> {
@@ -50,6 +51,14 @@ pub trait ThumbnailService {
     ///
     /// # Examples
     /// ```
+    /// let engine = ConversionEngine::Ffmpeg;
+    /// let service = ThumbnailServiceBuilder::new(selected_engine).expect("error!");
+    /// let request = ThumbnailRequest::new(
+    ///     "00:00:01.000",
+    ///     "video.mp4",
+    ///     "video.jpg"
+    /// );
+    /// let result = service.extract_thumbnail(request);
     /// ```
     fn extract_thumbnail(&self, thumbnail_request: ThumbnailRequest) -> Result<ThumbnailResponse, AtiumError>;
 }
