@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::process::{Command, Output};
 use crate::atium::common::error::AtiumError;
 
@@ -40,6 +41,12 @@ impl CommandManager {
         let command = Command::new(self.command.clone())
             .args(args)
             .output();
+
+        // todo: add with logging facility
+        // println!();
+        // let all_args: Vec<&OsStr> = command_with_args.get_args().collect();
+        // all_args.iter().for_each(|a| print!(" {} ", a.to_str().unwrap_or("")));
+        // println!();
 
         match command {
             Ok(result) => Ok(result),

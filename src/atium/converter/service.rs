@@ -4,7 +4,10 @@ use rand::Rng;
 use uuid::Uuid;
 use crate::atium::common::command_manager::CommandManager;
 use crate::atium::common::error::AtiumError;
+use crate::atium::common::model::ThumbnailResponse;
+use crate::atium::common::service::ThumbnailServiceBuilder;
 use crate::converter::model::{ConversionEngine, ConversionInput, ConversionRequest, ConversionResponse, get_width_height, InputSourceType, OutputResolution};
+use crate::ThumbnailRequest;
 
 /// Conversion service that holds the logic for converting a video content
 pub trait ConversionService {
@@ -12,7 +15,7 @@ pub trait ConversionService {
     ///
     /// # Arguments
     ///
-    /// * `request` - An instance of [`ConversionRequest`] struct
+    /// * `conversion_request` - An instance of [`ConversionRequest`] struct
     ///
     /// # Examples
     /// ```
@@ -88,7 +91,7 @@ impl FFMPEGConversionService {
     fn build_args(&self, resolution: OutputResolution, input_file_path: String, output_file: String) -> Result<Vec<String>, &'static str> {
         let (width, height) = get_width_height(resolution);
 
-        println!("Requested resolution is [{}X{}]", width, height);
+        println!("Requested resolution is [{}x{}]", width, height);
 
         Ok(vec![
             String::from("-i"),
@@ -97,6 +100,37 @@ impl FFMPEGConversionService {
             format!("scale={}:{}", width, height),
             output_file
         ])
+    }
+    fn extract_thumbnail(&self, thumbnail_request: Option<ThumbnailRequest>, video_file: String) -> Option<ThumbnailResponse>{
+        return match thumbnail_request {
+            None => {
+                println!("Thumbnail extraction not requested");
+                None
+            },
+            Some(req) => {
+                let thumb_engine = ConversionEngine::Ffmpeg;
+                let service = ThumbnailServiceBuilder::new(thumb_engine)
+                    .expect("Could not build service!");
+                let input_file =
+                    if req.input_file.is_none() {
+                        Some(video_file)
+                    } else {
+                        req.input_file
+                    };
+                let request = ThumbnailRequest {
+                    timestamp: req.timestamp,
+                    input_file,
+                    output_file: req.output_file
+                };
+                match service.extract_thumbnail(request) {
+                    Ok(response) => Some(response),
+                    Err(err) => {
+                        eprintln!("An error occurred when extracting thumbnail [{}]", err);
+                        None
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -121,8 +155,12 @@ impl ConversionService for FFMPEGConversionService{
                     self.command_manager.print_command_output(result.stderr)?;
                     return Err(AtiumError::ConversionError("Execution of command returned ERROR".to_string()))
                 }
+
                 self.cleanup_tmp_file(input_file_path);
-                Ok(ConversionResponse { output_file: output_file.to_string() })
+                Ok(ConversionResponse {
+                    output_file: output_file.clone(),
+                    thumbnail_response: self.extract_thumbnail(conversion_request.output.thumbnail_request, output_file)
+                })
             }
             Err(_) => {
                 self.cleanup_tmp_file(input_file_path);

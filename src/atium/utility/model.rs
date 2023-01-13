@@ -1,16 +1,3 @@
-pub enum ThumbnailResolution {
-    Hd, FullHd, FullHd2k, UltraHd, FullUltraHd
-}
-
-pub enum ThumbnailExtension {
-    Jpeg, Png
-}
-
-pub struct ThumbnailRequest {
-    pub resolution: Option<ThumbnailResolution>,
-    pub timestamp: Option<String>,
-    pub extension: Option<ThumbnailExtension>
-}
 /// Supported values for infos output format
 pub enum InfoFormat {
     Json, Html, Xml

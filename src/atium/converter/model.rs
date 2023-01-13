@@ -1,3 +1,5 @@
+use crate::atium::common::model::{ThumbnailRequest, ThumbnailResponse};
+
 /// The engine used for conversion
 pub enum ConversionEngine {
     Ffmpeg
@@ -73,7 +75,8 @@ pub enum OutputCodec {
 pub struct ConversionOutput {
     pub file: String,
     pub resolution: OutputResolution,
-    pub codec: OutputCodec
+    pub codec: OutputCodec,
+    pub thumbnail_request: Option<ThumbnailRequest>
 }
 
 /// Conversion request containing options for input and output
@@ -84,5 +87,6 @@ pub struct ConversionRequest {
 
 /// Conversion response containing the output filepath
 pub struct ConversionResponse {
-    pub output_file: String
+    pub output_file: String,
+    pub thumbnail_response: Option<ThumbnailResponse>
 }
