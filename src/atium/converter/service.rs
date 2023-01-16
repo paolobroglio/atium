@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::Path;
+use log::{debug, error, info, warn};
 use rand::Rng;
 use uuid::Uuid;
 use crate::atium::common::command_manager::CommandManager;
@@ -73,22 +74,28 @@ impl FFMPEGConversionService {
                 new_path.push_str(".mp4");
 
                 match fs::copy(source.file_name, new_path.clone()) {
-                    Ok(_) => Ok(new_path),
-                    Err(_) => Err("Error when trying to copy input file")
+                    Ok(_) => {
+                        debug!("Successfully copied source file!");
+                        Ok(new_path)
+                    },
+                    Err(err) => {
+                        error!("Error when trying to copy input file: {}", err);
+                        Err("Error when trying to copy input file")
+                    }
                 }
             }
         }
     }
     fn cleanup_tmp_file(&self, tmp_filepath: String) {
         match fs::remove_file(tmp_filepath) {
-            Ok(_) => println!("Temporary file removed successfully"),
-            Err(_) => eprintln!("Temporary file not removed!")
+            Ok(_) => debug!("Temporary file removed successfully"),
+            Err(err) => warn!("Temporary file not removed: {}", err)
         }
     }
     fn build_args(&self, resolution: OutputResolution, input_file_path: String, output_file: String) -> Result<Vec<String>, &'static str> {
         let (width, height) = get_width_height(resolution);
 
-        println!("Requested resolution is [{}x{}]", width, height);
+        debug!("Requested resolution is [{}x{}]", width, height);
 
         Ok(vec![
             String::from("-i"),
@@ -101,7 +108,7 @@ impl FFMPEGConversionService {
     fn extract_thumbnail(&self, thumbnail_request: Option<ThumbnailRequest>, video_file: String) -> Option<ThumbnailResponse>{
         return match thumbnail_request {
             None => {
-                println!("Thumbnail extraction not requested");
+                debug!("Thumbnail extraction not requested");
                 None
             },
             Some(req) => {
@@ -122,7 +129,7 @@ impl FFMPEGConversionService {
                 match service.extract_thumbnail(request) {
                     Ok(response) => Some(response),
                     Err(err) => {
-                        eprintln!("An error occurred when extracting thumbnail [{}]", err);
+                        error!("An error occurred when extracting thumbnail [{}]", err);
                         None
                     }
                 }
@@ -144,7 +151,7 @@ impl ConversionService for FFMPEGConversionService{
             .map_err(|err_msg| AtiumError::ConversionError(err_msg.to_string()))
             .expect("Could not build command!");
 
-        println!("Converting file at path [{}]", input_file_path);
+        debug!("Converting file at path [{}]", input_file_path);
 
         match self.command_manager.execute_with_args(built_args.iter().map(AsRef::as_ref).collect()) {
             Ok(result) => {
@@ -154,6 +161,9 @@ impl ConversionService for FFMPEGConversionService{
                 }
 
                 self.cleanup_tmp_file(input_file_path);
+
+                debug!("Conversion done!");
+
                 Ok(ConversionResponse {
                     output_file: output_file.clone(),
                     thumbnail_response: self.extract_thumbnail(conversion_request.output.thumbnail_request, output_file)
@@ -187,10 +197,11 @@ impl ConversionServiceBuilder {
     pub fn new(engine: ConversionEngine) -> Result<Box<dyn ConversionService>, AtiumError> {
         return match engine {
             ConversionEngine::Ffmpeg => {
+                debug!("Creating a new FFMPEG service");
                 let command_manager =
                     CommandManager::new("ffmpeg".to_string(), vec!["-version"])
                         .expect("could not load command!");
-
+                debug!("FFMPEG service created!");
                 Ok(Box::new(FFMPEGConversionService {
                     command_manager
                 }))

@@ -1,4 +1,6 @@
+use std::ffi::OsStr;
 use std::process::{Command, Output};
+use log::debug;
 use crate::atium::common::error::AtiumError;
 
 /// A simple struct that holds the logic needed for managing external commands
@@ -10,6 +12,8 @@ impl CommandManager {
     /// Creates a new [`CommandManager`] by trying if the provided command is available on the
     /// executing environment.
     pub fn new(command: String, command_args: Vec<&str>) -> Result<CommandManager, AtiumError> {
+        debug!("Loading a new command {}", command.clone());
+
         let command_output = Command::new(command.clone())
             .args(command_args)
             .output();
@@ -37,17 +41,16 @@ impl CommandManager {
         }
     }
     pub fn execute_with_args(&self, args: Vec<&str>) -> Result<Output, AtiumError> {
-        let command = Command::new(self.command.clone())
-            .args(args)
-            .output();
+        let mut cmd = Command::new(self.command.clone());
+        let cmd_with_args = cmd.args(args);
 
-        // todo: add with logging facility
-        // println!();
-        // let all_args: Vec<&OsStr> = command_with_args.get_args().collect();
-        // all_args.iter().for_each(|a| print!(" {} ", a.to_str().unwrap_or("")));
-        // println!();
 
-        match command {
+        debug!("Commands list begin:");
+        let all_args: Vec<&OsStr> = cmd_with_args.get_args().collect();
+        all_args.iter().for_each(|a| debug!(" {}\n", a.to_str().unwrap_or("")));
+        debug!("Commands list end");
+
+        match cmd_with_args.output() {
             Ok(result) => Ok(result),
             Err(_) => Err(AtiumError::CommandError("error when executing command".to_string())),
         }

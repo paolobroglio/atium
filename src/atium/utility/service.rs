@@ -1,4 +1,5 @@
 use std::fs;
+use log::{debug, error};
 use uuid::Uuid;
 use crate::atium::common::command_manager::CommandManager;
 use crate::atium::common::error::AtiumError;
@@ -48,10 +49,11 @@ impl InfoExtractorBuilder {
     pub fn new(engine: InfoExtractorEngine) -> Result<Box<dyn InfoExtractorService>, AtiumError> {
         return match engine {
             InfoExtractorEngine::MediaInfo => {
+                debug!("Creating a new MEDIAINFO service");
                 let command_manager =
                     CommandManager::new("mediainfo".to_string(), vec!["--version"])
                         .expect("could not load command!");
-
+                debug!("MEDIAINFO service created!");
                 Ok(Box::new(MediaInfoExtractorService {
                     command_manager
                 }))
@@ -83,8 +85,14 @@ impl MediaInfoExtractorService {
         let path = filename + ext;
 
         match fs::write(path.clone(), output.stdout) {
-            Ok(_) => Ok(path),
-            Err(_) => Err("could not write to file!")
+            Ok(_) => {
+                debug!("Successfully wrote info to file");
+                Ok(path)
+            },
+            Err(err) => {
+                error!("Could not write to file: {}", err);
+                Err("could not write to file!")
+            }
         }
     }
     fn write_result(&self, execution_result: std::process::Output, output_file: Option<String>, format: InfoFormat) -> Result<InfoExtractorResponse, AtiumError> {

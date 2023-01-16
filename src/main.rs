@@ -122,6 +122,7 @@
 
 
 use clap::{Parser, Subcommand};
+use log::{error, info};
 
 use atium::converter;
 use crate::atium::common::model::{ThumbnailRequest};
@@ -198,6 +199,9 @@ struct Cli {
 }
 
 fn main() {
+
+    env_logger::init();
+
     let cli = Cli::parse();
 
     match &cli.command {
@@ -218,11 +222,11 @@ fn main() {
             match info_extractor_service.get_info(request) {
                 Ok(response) => {
                     if response.output.file.is_some() {
-                        println!("Output written to {}", response.output.file.unwrap())
+                        info!("Output written to {}", response.output.file.unwrap())
                     }
-                    println!("Info extracted successfully")
+                    info!("Info extracted successfully")
                 }
-                Err(err) => eprintln!("An error occurred when extracting info {}", err)
+                Err(err) => error!("An error occurred when extracting info {}", err)
             }
         },
         Commands::Convert {
@@ -257,9 +261,9 @@ fn main() {
 
             match conversion_service.convert(request) {
                 Ok(response) => {
-                    println!("Converted file available at [{}]", response.output_file)
+                    info!("Converted file available at [{}]", response.output_file)
                 }
-                Err(msg) => eprintln!("An error occurred when converting {}", msg)
+                Err(msg) => error!("An error occurred when converting {}", msg)
             }
         },
         Commands::Thumbnail {
@@ -277,11 +281,11 @@ fn main() {
                 .expect("Could not build service!");
 
             if request.is_none() {
-                eprintln!("You didn't specify all the required options!")
+                error!("You didn't specify all the required options!")
             } else {
                 match service.extract_thumbnail(request.unwrap()) {
-                    Ok(_) => println!("Thumbnail extracted successfully"),
-                    Err(err) => eprintln!("An error occurred when extracting thumbnail: {}", err)
+                    Ok(_) => info!("Thumbnail extracted successfully"),
+                    Err(err) => error!("An error occurred when extracting thumbnail: {}", err)
                 }
             }
 
