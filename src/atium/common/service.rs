@@ -1,4 +1,5 @@
 use std::path::Path;
+use log::{debug, info};
 use rand::Rng;
 use uuid::Uuid;
 use crate::atium::common::command_manager::CommandManager;
@@ -27,10 +28,11 @@ impl ThumbnailServiceBuilder {
     pub fn new(engine: ConversionEngine) -> Result<Box<dyn ThumbnailService>, AtiumError> {
         return match engine {
             ConversionEngine::Ffmpeg => {
+                debug!("Creating a new FFMPEG service");
                 let command_manager =
                     CommandManager::new("ffmpeg".to_string(), vec!["-version"])
                         .expect("could not load command!");
-
+                debug!("FFMPEG service created!");
                 Ok(Box::new(FFMPEGThumbnailService {
                     command_manager
                 }))
@@ -112,6 +114,7 @@ impl ThumbnailService for FFMPEGThumbnailService {
 
         let mut output_file = thumbnail_request.output_file
             .unwrap_or_else(|| self.build_output_from_input_path(input_file.clone()));
+
         output_file = self.compute_output_file(&output_file);
 
         let timestamp = thumbnail_request.timestamp
@@ -125,7 +128,7 @@ impl ThumbnailService for FFMPEGThumbnailService {
                     self.command_manager.print_command_output(result.stderr)?;
                     return Err(AtiumError::ConversionError("Execution of command returned ERROR".to_string()))
                 }
-                println!("Thumbnail extracted at path [{}]", output_file);
+                info!("Thumbnail extracted at path [{}]", output_file);
                 Ok(ThumbnailResponse{ output: output_file })
             }
             Err(err) => Err(err)
