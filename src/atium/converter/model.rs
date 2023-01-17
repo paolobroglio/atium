@@ -54,7 +54,7 @@ pub fn parse_resolution(resolution_string: &String) -> OutputResolution {
 /// * FullHd2k    -> 1080p - 2048x1080
 /// * UltraHd     -> 4k    - 3840x2160
 /// * FullUltraHd -> 8k    - 7680x4320
-pub fn get_width_height(resolution: OutputResolution) -> (i16,i16) {
+pub fn get_width_height(resolution: OutputResolution) -> (i32,i32) {
     match resolution {
         OutputResolution::Sd => (640, 480),
         OutputResolution::Hd => (1280,720),

@@ -1,4 +1,5 @@
 /// Supported values for infos output format
+#[derive(Clone)]
 pub enum InfoFormat {
     Json, Html, Xml
 }
@@ -16,7 +17,18 @@ pub enum InfoExtractorEngine {
     MediaInfo
 }
 
+#[derive(Clone)]
+pub enum InfoOutputType {
+    /// Output will be printed to Stdout
+    Stdout,
+    /// Output will be written to a file
+    File,
+    /// Output will be returned as a [`String`]
+    Plain
+}
+
 /// It represents the request used to extract infos from a video file
+#[derive(Clone)]
 pub struct InfoExtractorRequest {
     /// The input file path
     pub input: String,
@@ -31,13 +43,18 @@ pub struct InfoExtractorRequest {
     /// An output file is requested
     /// If None, the output will be written to stdout
     /// Otherwise the output will be written to a file at the provided path
-    pub output_file: Option<String>
+    pub output_file: Option<String>,
+    /// If Some of [`InfoOutputType`] it contains one of Stdout, File, Plain options
+    /// Default to Stdout
+    pub output_type: Option<InfoOutputType>
 }
 
 /// It represents the response output of the extracted info
 pub struct InfoExtractorResponseOutput {
     /// If Some it contains the path to the written file containing extracted infos
-    pub file: Option<String>
+    pub file: Option<String>,
+    /// If Some it contains the analysis output
+    pub content: Option<String>
 }
 
 /// It represents the response of the extracted info

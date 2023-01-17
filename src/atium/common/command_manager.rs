@@ -34,11 +34,16 @@ impl CommandManager {
     pub fn print_command_output(&self, output: Vec<u8>) -> Result<(), AtiumError> {
         match String::from_utf8(output) {
             Ok(content) => {
-                content.lines().for_each(|x| println!("{:?}", x));
+                content.lines().for_each(|x| println!("{}", x));
                 Ok(())
             },
             Err(_) => Err(AtiumError::IOError("error when writing to stdout".to_string())),
         }
+    }
+    /// Returns a [`String`] containing the content of the command execution output
+    pub fn get_command_output_as_string(&self, output: Vec<u8>) -> Result<String, AtiumError> {
+        String::from_utf8(output)
+            .map_err(|_| AtiumError::IOError("error when writing to stdout".to_string()))
     }
     pub fn execute_with_args(&self, args: Vec<&str>) -> Result<Output, AtiumError> {
         let mut cmd = Command::new(self.command.clone());
