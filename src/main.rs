@@ -128,7 +128,7 @@ use atium::converter;
 use crate::atium::common::model::{ThumbnailRequest};
 use crate::atium::common::service::ThumbnailServiceBuilder;
 
-use crate::atium::utility::model::{InfoExtractorEngine, InfoExtractorRequest, parse_info_format};
+use crate::atium::utility::model::{InfoExtractorEngine, InfoExtractorRequest, InfoOutputType, parse_info_format};
 use crate::atium::utility::service::InfoExtractorBuilder;
 use crate::converter::model::{ConversionEngine, ConversionInput, ConversionOutput, ConversionRequest, InputSourceType, OutputCodec, parse_resolution};
 use crate::converter::service::ConversionServiceBuilder;
@@ -216,7 +216,8 @@ fn main() {
                 input: input.to_string(),
                 format: parse_info_format(output_format.clone()),
                 full: *full,
-                output_file: output_file.clone()
+                output_file: output_file.clone(),
+                output_type: Some(InfoOutputType::File)
             };
 
             match info_extractor_service.get_info(request) {
