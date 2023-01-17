@@ -1,10 +1,5 @@
 use crate::atium::common::model::{ThumbnailRequest, ThumbnailResponse};
 
-/// The engine used for conversion
-pub enum ConversionEngine {
-    Ffmpeg
-}
-
 /// The input file source type
 pub enum InputSourceType {
     Local

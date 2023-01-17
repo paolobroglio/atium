@@ -13,10 +13,6 @@ pub fn parse_info_format(input: Option<String>) -> Option<InfoFormat> {
     })
 }
 
-pub enum InfoExtractorEngine {
-    MediaInfo
-}
-
 #[derive(Clone)]
 pub enum InfoOutputType {
     /// Output will be printed to Stdout

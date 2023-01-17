@@ -2,6 +2,7 @@ use std::fmt;
 use std::fmt::{Formatter};
 
 #[derive(Debug)]
+/// This is a specific Error for Atium
 pub enum AtiumError {
     ConversionError(String),
     IOError(String),

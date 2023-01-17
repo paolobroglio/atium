@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 use std::fs;
+use std::path::Path;
 use log::{debug, error};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use uuid::Uuid;
 use crate::atium::common::error::AtiumError;
 
 
@@ -64,6 +67,26 @@ impl MediaInfoJsonLoader {
     pub fn load_json_from_string(&self, input: &String) -> Result<AnalysisOutput, AtiumError> {
         self.deserialize(input.as_str())
     }
+}
+
+pub fn compute_output_file(output: &String) -> String {
+    let path = Path::new(output);
+
+    if path.exists() {
+        let uuid = &Uuid::new_v4().to_string()[0..7];
+        let splitted =
+            output
+                .split('.')
+                .collect::<Vec<_>>();
+        let mut rng = rand::thread_rng();
+        let random_n = rng.gen_range(0..10000).to_string();
+        let name = splitted.get(0).unwrap_or(&uuid).to_string();
+        let extension = splitted.get(1).unwrap_or(&"mp4").to_string();
+
+        return format!("{}-{}.{}", name, random_n, extension)
+    }
+
+    output.clone()
 }
 
 #[cfg(test)]

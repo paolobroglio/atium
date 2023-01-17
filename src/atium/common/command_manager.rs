@@ -45,6 +45,7 @@ impl CommandManager {
         String::from_utf8(output)
             .map_err(|_| AtiumError::IOError("error when writing to stdout".to_string()))
     }
+    /// Executes the previously built command by suppplying a collection of arguments
     pub fn execute_with_args(&self, args: Vec<&str>) -> Result<Output, AtiumError> {
         let mut cmd = Command::new(self.command.clone());
         let cmd_with_args = cmd.args(args);

@@ -10,16 +10,9 @@
 //! ### Conversion
 //!
 //! Basic usage for conversion API is simple as it follows:
-//! #### Engine selection
-//! First you need to select an **engine**. This is a straightforward way to identify the underlying
-//! tool used for doing the actual conversion.
+//! First you need to build a new instance of [FFMPEGConversionService](crate::converter::service::FFMPEGConversionService)
 //! ```
-//! let selected_engine = ConversionEngine::Ffmpeg;
-//! ```
-//! Then you must obtain a new instance of the [ConversionService](crate::converter::service::ConversionService) trait that will contain the specific
-//! implementation according to the selected tool.
-//! ```
-//! let conversion_service = ConversionServiceBuilder::new(selected_engine).expect("could not load service");
+//! let conversion_service = FFMPEGConversionService::new().expect("could not load service");
 //! ```
 //! The following step is to create a [ConversionRequest](crate::converter::model::ConversionRequest) that contains the required options in order to
 //! tune the conversion output.
@@ -126,12 +119,12 @@ use log::{error, info};
 
 use atium::converter;
 use crate::atium::common::model::{ThumbnailRequest};
-use crate::atium::common::service::ThumbnailServiceBuilder;
+use crate::atium::common::service::FFMPEGThumbnailService;
 
-use crate::atium::utility::model::{InfoExtractorEngine, InfoExtractorRequest, InfoOutputType, parse_info_format};
-use crate::atium::utility::service::InfoExtractorBuilder;
-use crate::converter::model::{ConversionEngine, ConversionInput, ConversionOutput, ConversionRequest, InputSourceType, OutputCodec, parse_resolution};
-use crate::converter::service::ConversionServiceBuilder;
+use crate::atium::utility::model::{InfoExtractorRequest, InfoOutputType, parse_info_format};
+use crate::atium::utility::service::MediaInfoExtractorService;
+use crate::converter::model::{ConversionInput, ConversionOutput, ConversionRequest, InputSourceType, OutputCodec, parse_resolution};
+use crate::converter::service::FFMPEGConversionService;
 
 mod atium;
 
@@ -208,10 +201,8 @@ fn main() {
         Commands::Analyze {
             input, output_format, full, output_file
         } => {
-            let selected_engine = InfoExtractorEngine::MediaInfo;
-            let info_extractor_service =
-                InfoExtractorBuilder::new(selected_engine)
-                    .expect("could not load service");
+            let info_extractor_service = MediaInfoExtractorService::new()
+                .expect("Error building media info service");
             let request = InfoExtractorRequest {
                 input: input.to_string(),
                 format: parse_info_format(output_format.clone()),
@@ -239,10 +230,8 @@ fn main() {
             thumb_source,
             thumb_out
         } => {
-            let selected_engine = ConversionEngine::Ffmpeg;
-            let conversion_service =
-                ConversionServiceBuilder::new(selected_engine)
-                    .expect("could not load service");
+            let conversion_service = FFMPEGConversionService::new()
+                .expect("Cannot build service");
             let request = ConversionRequest{
                 input: ConversionInput {
                     source_type: InputSourceType::Local,
@@ -277,9 +266,8 @@ fn main() {
                 source_path,
                 output_path
             );
-            let engine = ConversionEngine::Ffmpeg;
-            let service = ThumbnailServiceBuilder::new(engine)
-                .expect("Could not build service!");
+            let service = FFMPEGThumbnailService::new()
+                .expect("Cannot build service");
 
             if request.is_none() {
                 error!("You didn't specify all the required options!")

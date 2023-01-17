@@ -2,7 +2,8 @@
 
 # Atium
 
-**atium** is a tool that lets you convert videos and exposes other useful tools.
+**atium** is a tool that lets you convert videos and exposes other useful tools. 
+In order to expose these features it wraps `ffmpeg` and `mediainfo`tools.
 
 # Usage
 
