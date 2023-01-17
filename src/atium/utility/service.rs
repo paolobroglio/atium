@@ -4,63 +4,7 @@ use uuid::Uuid;
 use crate::atium::common::command_manager::CommandManager;
 use crate::atium::common::error::AtiumError;
 
-use crate::atium::utility::model::{InfoExtractorEngine, InfoExtractorRequest, InfoExtractorResponse, InfoExtractorResponseOutput, InfoFormat, InfoOutputType};
-
-/// This service encapsulates the business logic to perform
-/// a media file analysis and writes it to a requested output.
-pub trait InfoExtractorService {
-    /// Extracts infos from given input video file by using the requested engine.
-    ///
-    /// # Arguments
-    ///
-    /// * `request` - An instance of [`InfoExtractorRequest`] struct
-    ///
-    /// # Examples
-    /// ```
-    /// let selected_engine = InfoExtractorEngine::MediaInfo;
-    /// let info_extractor_service = InfoExtractorBuilder::new(selected_engine).expect("error!");
-    ///
-    /// let request = InfoExtractorRequest {
-    ///     input: "/path/to/video.mp4",
-    /// }
-    /// let info_response = info_extractor_service.get_info(request);
-    /// ```
-    fn get_info(&self, request: InfoExtractorRequest) -> Result<InfoExtractorResponse, AtiumError>;
-}
-
-
-/// This struct lets you build a new [`InfoExtractorService`] based on given engine
-pub struct InfoExtractorBuilder {}
-
-impl InfoExtractorBuilder {
-    /// Creates a new instance of [`InfoExtractorService`] with the requested loaded engine.
-    /// Current supported engines are:
-    /// * `MediaInfo`
-    ///
-    /// # Arguments
-    ///
-    /// * `engine` - Any value of [`InfoExtractorEngine`] enum
-    ///
-    /// # Examples
-    /// ```
-    /// let selected_engine = InfoExtractorEngine::MediaInfo;
-    /// let info_extractor_service = InfoExtractorBuilder::new(selected_engine).expect("error!");
-    /// ```
-    pub fn new(engine: InfoExtractorEngine) -> Result<Box<dyn InfoExtractorService>, AtiumError> {
-        return match engine {
-            InfoExtractorEngine::MediaInfo => {
-                debug!("Creating a new MEDIAINFO service");
-                let command_manager =
-                    CommandManager::new("mediainfo".to_string(), vec!["--version"])
-                        .expect("could not load command!");
-                debug!("MEDIAINFO service created!");
-                Ok(Box::new(MediaInfoExtractorService {
-                    command_manager
-                }))
-            }
-        }
-    }
-}
+use crate::atium::utility::model::{InfoExtractorRequest, InfoExtractorResponse, InfoExtractorResponseOutput, InfoFormat, InfoOutputType};
 
 /// MediaInfo Engine Service for info extraction
 pub struct MediaInfoExtractorService {
@@ -120,10 +64,13 @@ impl MediaInfoExtractorService {
                 })
         }
     }
-}
+    pub fn new() -> Result<Self, AtiumError> {
+        let command_manager =
+            CommandManager::new("mediainfo".to_string(), vec!["--Version"])?;
 
-impl InfoExtractorService for MediaInfoExtractorService {
-    fn get_info(&self, request: InfoExtractorRequest) -> Result<InfoExtractorResponse, AtiumError> {
+        Ok(Self { command_manager })
+    }
+    pub fn get_info(&self, request: InfoExtractorRequest) -> Result<InfoExtractorResponse, AtiumError> {
 
         let binding = request.clone();
 
