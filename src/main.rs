@@ -114,15 +114,14 @@
 //! ```
 
 
+use std::env;
 use clap::{Parser, Subcommand};
 use log::{error, info};
 
 use atium::converter;
-use crate::atium::common::model::{ThumbnailRequest};
-use crate::atium::common::service::FFMPEGThumbnailService;
-
-use crate::atium::utility::model::{InfoExtractorRequest, InfoOutputType, parse_info_format};
-use crate::atium::utility::service::MediaInfoExtractorService;
+use crate::atium::common::analysis_service::MediaInfoExtractorService;
+use crate::atium::common::model::{InfoExtractorRequest, parse_info_format, parse_info_output_type, ThumbnailRequest};
+use crate::atium::common::thumbnail_service::FFMPEGThumbnailService;
 use crate::converter::model::{ConversionInput, ConversionOutput, ConversionRequest, InputSourceType, OutputCodec, parse_resolution};
 use crate::converter::service::FFMPEGConversionService;
 
@@ -159,15 +158,18 @@ enum Commands {
         /// Input path of the file that will be analyzed
         #[arg(short, long)]
         input: String,
-        /// Whether you want the full analysis or not
+        /// Whether you want the full analysis or not, can be `true/false`
         #[arg(short, long)]
         full: Option<bool>,
-        /// Output format of the analysis tool
+        /// Output format of the analysis tool `json/xml/html`
         #[arg(long)]
         output_format: Option<String>,
         /// Output file containing analysis result
         #[arg(long)]
-        output_file: Option<String>
+        output_file: Option<String>,
+        /// Output type `std/file`
+        #[arg(long)]
+        output_type: Option<String>
     },
     /// Thumbnail extraction tool
     Thumbnail {
@@ -191,15 +193,27 @@ struct Cli {
      command: Commands
 }
 
+fn setup_logger() {
+    let rust_log = "RUST_LOG";
+    if env::var(rust_log).is_err() {
+        env::set_var(rust_log, "error");
+    }
+    env_logger::init()
+}
+
 fn main() {
 
-    env_logger::init();
+    setup_logger();
 
     let cli = Cli::parse();
 
     match &cli.command {
         Commands::Analyze {
-            input, output_format, full, output_file
+            input,
+            output_format,
+            full,
+            output_file,
+            output_type
         } => {
             let info_extractor_service = MediaInfoExtractorService::new()
                 .expect("Error building media info service");
@@ -208,7 +222,7 @@ fn main() {
                 format: parse_info_format(output_format.clone()),
                 full: *full,
                 output_file: output_file.clone(),
-                output_type: Some(InfoOutputType::File)
+                output_type: parse_info_output_type(output_type.clone())
             };
 
             match info_extractor_service.get_info(request) {

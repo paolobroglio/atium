@@ -3,8 +3,8 @@ use log::{debug, error};
 use uuid::Uuid;
 use crate::atium::common::command_manager::CommandManager;
 use crate::atium::common::error::AtiumError;
-
-use crate::atium::utility::model::{InfoExtractorRequest, InfoExtractorResponse, InfoExtractorResponseOutput, InfoFormat, InfoOutputType};
+use crate::atium::common::model::{InfoExtractorResponse, InfoExtractorResponseOutput, InfoFormat, InfoOutputType};
+use crate::InfoExtractorRequest;
 
 /// MediaInfo Engine Service for info extraction
 pub struct MediaInfoExtractorService {
@@ -46,7 +46,7 @@ impl MediaInfoExtractorService {
                     }
                 }),
             InfoOutputType::File => {
-                self.write_info_to_file(execution_result, request.output_file.unwrap_or(String::from("")), format)
+                self.write_info_to_file(execution_result, request.output_file.unwrap_or_else(|| String::from("")), format)
                     .map(|output| InfoExtractorResponse {
                         output: InfoExtractorResponseOutput {
                             file: Some(output),

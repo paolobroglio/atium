@@ -4,12 +4,12 @@ use log::{debug, error, warn};
 use uuid::Uuid;
 
 use crate::{InfoExtractorRequest, MediaInfoExtractorService, ThumbnailRequest};
+use crate::atium::common::analysis_helper::{AnalysisOutput, compute_output_file, MediaInfoJsonLoader};
+
 use crate::atium::common::command_manager::CommandManager;
 use crate::atium::common::error::AtiumError;
-use crate::atium::common::model::ThumbnailResponse;
-use crate::atium::common::service::FFMPEGThumbnailService;
-use crate::atium::utility::helper::{AnalysisOutput, compute_output_file, MediaInfoJsonLoader};
-use crate::atium::utility::model::{InfoFormat, InfoOutputType};
+use crate::atium::common::model::{InfoFormat, InfoOutputType, ThumbnailResponse};
+use crate::atium::common::thumbnail_service::FFMPEGThumbnailService;
 use crate::converter::model::{ConversionInput, ConversionRequest, ConversionResponse, get_width_height, InputSourceType, OutputResolution};
 
 
@@ -107,7 +107,7 @@ impl FFMPEGConversionService {
             output_file
         ])
     }
-    fn extract_thumbnail(&self, thumbnail_request: Option<ThumbnailRequest>, video_file: String) -> Option<ThumbnailResponse> {
+    fn extract_thumbnail(&self, thumbnail_request: Option<ThumbnailRequest>, video_file: String, analysis_output: AnalysisOutput) -> Option<ThumbnailResponse> {
         return match thumbnail_request {
             None => {
                 debug!("Thumbnail extraction not requested");
@@ -116,8 +116,11 @@ impl FFMPEGConversionService {
             Some(req) => {
                 match FFMPEGThumbnailService::new() {
                     Ok(service) => {
+                        let duration = analysis_output
+                            .extract_field_from_track(0, &"Duration".to_string())
+                            .unwrap_or("1.0".to_string());
                         let input_file =
-                            if req.input_file.is_none() {
+                        if req.input_file.is_none() {
                                 Some(video_file)
                             } else {
                                 req.input_file
@@ -125,8 +128,10 @@ impl FFMPEGConversionService {
                         let request = ThumbnailRequest {
                             timestamp: req.timestamp,
                             input_file,
-                            output_file: req.output_file
+                            output_file: req.output_file,
+                            input_duration: Some(duration)
                         };
+
                         match service.extract_thumbnail(request) {
                             Ok(response) => Some(response),
                             Err(err) => {
@@ -147,10 +152,10 @@ impl FFMPEGConversionService {
 
         let analysis_output = self.extract_info(&input_file_path)?;
 
-        let output_file = compute_output_file(&conversion_request.output.file);
+        let output_file = compute_output_file(&conversion_request.output.file, "mp4")?;
         let built_args = self.build_args(
             conversion_request.output.resolution,
-            analysis_output,
+            analysis_output.clone(),
             input_file_path.clone(),
             output_file.clone())
             .map_err(|err_msg| AtiumError::ConversionError(err_msg.to_string()))?;
@@ -170,7 +175,7 @@ impl FFMPEGConversionService {
 
                 Ok(ConversionResponse {
                     output_file: output_file.clone(),
-                    thumbnail_response: self.extract_thumbnail(conversion_request.output.thumbnail_request, output_file)
+                    thumbnail_response: self.extract_thumbnail(conversion_request.output.thumbnail_request, output_file, analysis_output)
                 })
             }
             Err(_) => {
