@@ -9,12 +9,12 @@ use uuid::Uuid;
 use crate::atium::common::error::AtiumError;
 
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Media {
     pub track: Vec<HashMap<String,Value>>
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct AnalysisOutput {
     pub media: Media
 }
@@ -22,7 +22,10 @@ pub struct AnalysisOutput {
 impl AnalysisOutput {
     fn parse_string_value(&self, value: &Value) -> String {
         match value {
-            Value::String(s) => s.to_string(),
+            Value::String(s) => {
+                debug!("Extracted field value: [{}]", s);
+                s.to_string()
+            },
             _ => String::from(""),
         }
     }
@@ -69,24 +72,40 @@ impl MediaInfoJsonLoader {
     }
 }
 
-pub fn compute_output_file(output: &String) -> String {
-    let path = Path::new(output);
+fn get_file_name_from_path(path: &Path) -> Result<String, AtiumError> {
+    let name_os = path.file_stem()
+        .ok_or(AtiumError::IOError("Could not parse filename".to_string()))?
+        .to_os_string();
 
+    let uuid = Uuid::new_v4().to_string();
+
+    Ok(name_os.to_str()
+        .unwrap_or(uuid.as_str())
+        .to_string())
+}
+
+fn get_extension_from_path(path: &Path, default_extension: &str) -> Result<String, AtiumError> {
+    let name_os = path.extension()
+        .ok_or(AtiumError::IOError("Could not parse extension".to_string()))?
+        .to_os_string();
+
+    Ok(name_os.to_str()
+        .unwrap_or(default_extension)
+        .to_string())
+}
+
+pub fn compute_output_file(output: &String, default_extension: &str) -> Result<String, AtiumError> {
+    let path = Path::new(output);
     if path.exists() {
-        let uuid = &Uuid::new_v4().to_string()[0..7];
-        let splitted =
-            output
-                .split('.')
-                .collect::<Vec<_>>();
         let mut rng = rand::thread_rng();
         let random_n = rng.gen_range(0..10000).to_string();
-        let name = splitted.get(0).unwrap_or(&uuid).to_string();
-        let extension = splitted.get(1).unwrap_or(&"mp4").to_string();
+        let name = get_file_name_from_path(path)?;
+        let extension = get_extension_from_path(path, default_extension)?;
 
-        return format!("{}-{}.{}", name, random_n, extension)
+        return Ok(format!("{}-{}.{}", name, random_n, extension))
     }
 
-    output.clone()
+    Ok(output.clone())
 }
 
 #[cfg(test)]
@@ -102,7 +121,7 @@ mod tests {
 
         let result = json_loader.load_json_from_file(&d.to_str().unwrap().to_string());
 
-        assert_eq!(result.is_ok(), true);
+        assert!(result.is_ok());
     }
 
     #[test]
@@ -115,7 +134,34 @@ mod tests {
 
         let result = output.extract_field_from_track(1, &String::from("Width"));
 
-        assert_eq!(result.is_ok(), true);
+        assert!(result.is_ok());
         assert_eq!(result.ok().unwrap(), String::from("1920"))
+    }
+
+    #[test]
+    fn test_make_output_path() {
+        let result = compute_output_file(&String::from("/Users/user.name/path/to/video.mp4"), "mp4");
+        println!("{}", result.ok().unwrap());
+
+        // [WARNING] needs creating a tmp file
+        fs::write("/tmp/example.mp4", b"");
+        let result = compute_output_file(&String::from("/tmp/example.mp4"), "mp4");
+        println!("{}", result.ok().unwrap());
+    }
+
+    #[test]
+    fn test_get_name_from_path() {
+        let result = get_file_name_from_path(&Path::new("/tmp/example.mp4"));
+
+        assert_eq!(result.ok().unwrap(), String::from("example"));
+    }
+
+    #[test]
+    fn test_get_extension_from_path() {
+        let result = get_extension_from_path(&Path::new("/tmp/example.mp4"), "mp4");
+        assert_eq!(result.ok().unwrap(), String::from("mp4"));
+
+        let point_in_path = get_extension_from_path(&Path::new("/Users/user.name/dir/example.mp4"), "mp4");
+        assert_eq!(point_in_path.ok().unwrap(), String::from("mp4"));
     }
 }
